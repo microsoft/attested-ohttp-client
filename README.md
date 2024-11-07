@@ -1,33 +1,55 @@
-# Project
+# Attested OHTTP Client
+This repository contains a reference implementation of an attested OHTTP client for 
+Azure AI confidential inferencing.
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+## Prerequisites 
 
-As the maintainer of this project, please make a few updates:
+1. An AzureML endpoint with a confidential whisper model. 
+2. Docker 
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+## Using pre-built image
+You can use pre-built attested OHTTP container images to send an inferencing request. 
 
-## Contributing
+Set the inferencing endpoint and access key as follows.
+```
+export TARGET_URI=<URL for your endpoint>
+export API_KEY=<key for accessing the endpoint>
+```
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+Run inferencing using a pre-packaged audio file. 
+```
+export KMS_URL=https://accconfinferencedebug.confidential-ledger.azure.com
+docker run -e KMS_URL=${KMS_URL} mcr.microsoft.com/attested-ohttp-client:latest \
+  ${TARGET_URI} -F "file=@/examples/audio.mp3" -O "api-key: ${API_KEY}" -F "response_format=json"
+```
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+Run inferencing using your own audio file by mounting the file into the container.
+```
+export KMS_URL=https://accconfinferencedebug.confidential-ledger.azure.com
+export INPUT_PATH=<path to your input file>
+export MOUNTED_PATH=/examples/audio.mp3
+docker run -e KMS_URL=${KMS_URL} --volume ${INPUT_PATH}:${MOUNTED_PATH} \
+  mcr.microsoft.com/attested-ohttp-client:latest \
+  ${TARGET_URI} -F "file=@${MOUNTED_INPUT}" -O "api-key ${API_KEY}" -F "response_format=json"
+```
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+## Building your own container image
 
-## Trademarks
+### Development Environment
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+The repo supports development using GitHub Codespaces and devcontainers. The repository includes a devcontainer configuration that installs all dependencies. 
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/kapilvgit/ohttp)
+
+Alternatively, you can setup your own environment by installing dependencies.
+```
+sudo apt update
+sudo apt install -y curl build-essential jq libssl-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Next, you can build the client containers as follows. 
+
+```
+docker build -f docker/Dockerfile -t attested-ohttp-client .
+```
