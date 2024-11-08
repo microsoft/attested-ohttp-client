@@ -1,0 +1,55 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+    paths-ignore: ["*.md", "LICENSE-*"]
+  pull_request:
+    branches: ["main"]
+    paths-ignore: ["*.md", "LICENSE-*"]
+  workflow_dispatch:
+  
+env:
+  CARGO_TERM_COLOR: always
+  
+jobs:
+  check:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
+    env:
+      NSS_DIR: ${{ github.workspace }}/nss
+    strategy:
+      fail-fast: false
+      matrix:
+        hpke:
+          - rust-hpke
+        rust:
+          - 1.75.0
+          - stable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Build
+        run: |
+          sudo ln -s ${{ github.workspace }}/ohttp-server/libazguestattestation.so.1.0.5 /usr/lib/libazguestattestation.so
+          cargo +${{ matrix.rust }} build --tests --no-default-features --features ${{ matrix.hpke }}
+
+      - name: Run Tests
+        run: |
+          cargo +${{ matrix.rust }} test --no-default-features --features ${{ matrix.hpke }}
+
+      - name: Check formatting
+        if: ${{ success() || failure() }}
+        run: |
+          cargo +${{ matrix.rust }} fmt --all -- --check --config imports_granularity=Crate
+
+      - name: Clippy
+        if: ${{ success() || failure() }}
+        run: |
+          cargo clippy --tests --no-default-features --features ${{ matrix.hpke }}
