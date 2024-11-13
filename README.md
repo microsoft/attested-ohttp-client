@@ -20,14 +20,14 @@ export API_KEY=<key for accessing the endpoint>
 
 Run inferencing using a pre-packaged audio file. 
 ```
-export KMS_URL=https://accconfinferencedebug.confidential-ledger.azure.com
+export KMS_URL=https://accconfinferenceprod.confidential-ledger.azure.com
 docker run -e KMS_URL=${KMS_URL} mcr.microsoft.com/attested-ohttp-client:latest \
   ${TARGET_URI} -F "file=@/examples/audio.mp3" -O "api-key: ${API_KEY}" -F "response_format=json"
 ```
 
 Run inferencing using your own audio file by mounting the file into the container.
 ```
-export KMS_URL=https://accconfinferencedebug.confidential-ledger.azure.com
+export KMS_URL=https://accconfinferenceprod.confidential-ledger.azure.com
 export INPUT_PATH=<path_to_your_input_audio_file_exclusing_name>
 export INPUT_FILE=<name_of_your_audio_file>
 export MOUNTED_PATH=/test
