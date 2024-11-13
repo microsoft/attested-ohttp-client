@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 use bhttp::{Message, Mode};
-use clap::Parser;
 use futures_util::{stream::unfold, StreamExt};
 use ohttp::ClientRequest;
 use reqwest::Client;
@@ -15,14 +14,13 @@ use std::{
     str::FromStr,
 };
 use tracing::{error, info, trace};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug, Clone)]
 /// This allows a `HexArg` to be created from a string slice (`&str`) by decoding
 /// the string as hexadecimal.
-struct HexArg(Vec<u8>);
+pub struct HexArg(Vec<u8>);
 impl FromStr for HexArg {
     type Err = hex::FromHexError;
 
@@ -30,62 +28,13 @@ impl FromStr for HexArg {
         hex::decode(s).map(HexArg)
     }
 }
+
 /// This allows `HexArg` instances to be dereferenced to a slice of bytes (`[u8]`).
 impl Deref for HexArg {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-#[derive(Debug, Parser)]
-#[command(version = "0.1", about = "Make an oblivious HTTP request.")]
-struct Args {
-    /// The URL of an oblivious proxy resource.
-    /// If you use an oblivious request resource, this also works, though
-    /// you don't get any of the privacy guarantees.
-    url: String,
-
-    /// Target path of the oblivious resource
-    #[arg(long, short = 'p', default_value = "/")]
-    target_path: String,
-
-    /// key configuration
-    #[arg(long, short = 'c')]
-    config: Option<HexArg>,
-
-    /// URL of the KMS to obtain HPKE keys from
-    #[arg(long, short = 'f')]
-    kms_url: Option<String>,
-
-    /// Trusted KMS service certificate
-    #[arg(long, short = 'k')]
-    kms_cert: Option<PathBuf>,
-
-    /// Where to write response content.
-    /// If you omit this, output is written to `stdout`.
-    #[arg(long, short = 'o')]
-    output: Option<PathBuf>,
-
-    /// Read and write as binary HTTP messages instead of text.
-    #[arg(long, short = 'b')]
-    binary: bool,
-
-    /// When creating message/bhttp, use the indeterminate-length form.
-    #[arg(long, short = 'n', alias = "indefinite")]
-    indeterminate: bool,
-
-    /// List of headers in the inner request
-    #[arg(long, short = 'H')]
-    headers: Option<Vec<String>>,
-
-    /// List of fields in the inner request
-    #[arg(long, short = 'F')]
-    form_fields: Option<Vec<String>>,
-
-    /// List of headers in the outer request
-    #[arg(long, short = 'O')]
-    outer_headers: Option<Vec<String>>,
 }
 
 /// Writes the request line for an HTTP POST request to the provided buffer.
@@ -376,22 +325,16 @@ async fn post_request(
 }
 
 /// Decapsulate the http response
-/// The response can be saved to a file or printed to stdout, based on the value of args.output
 async fn handle_response(
     response: reqwest::Response,
-    client_response: ohttp::ClientResponse,
-    output: &Option<PathBuf>,
+    client_response: ohttp::ClientResponse
 ) -> Res<()> {
-    let mut output: Box<dyn io::Write> = if let Some(outfile) = output {
-        match File::create(outfile) {
-            Ok(file) => Box::new(file),
-            Err(e) => {
-                return Err(Box::new(e));
-            }
-        }
-    } else {
-        Box::new(std::io::stdout())
-    };
+    let mut output: Box<dyn io::Write> = Box::new(std::io::stdout()); 
+
+    info!("checking token in response");
+    if let Some(token) = response.headers().get("x-attestation-token") {
+        info!("token: {}", std::str::from_utf8(token.as_bytes()).unwrap())
+    }
 
     let stream = Box::pin(unfold(response, |mut response| async move {
         match response.chunk().await {
@@ -416,81 +359,82 @@ async fn handle_response(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Res<()> {
-    // Build a simple subscriber that outputs to stdout
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_file(true)
-        .with_line_number(true)
-        .finish();
-
-    // Set the subscriber as global default
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
-    ::ohttp::init();
-
-    let args = Args::parse();
-
-    //  Create ohttp request buffer
-    let request_buf = match create_request_buffer(
-        args.binary,
-        &args.target_path,
-        &args.headers,
-        &args.form_fields,
-    ) {
-        Ok(result) => result,
-        Err(e) => {
-            error!(e);
-            return Err(e);
-        }
-    };
-
-    trace!("Created the ohttp request buffer");
-
-    //  create the OHTTP request using the KMS or the static config file
-    let result = if let (Some(kms_url), Some(kms_cert)) = (&args.kms_url, &args.kms_cert) {
-        create_request_from_kms_config(kms_url, kms_cert).await
-    } else {
-        create_request_from_encoded_config_list(&args.config)
-    };
-    let ohttp_request = match result {
-        Ok(request) => request,
-        Err(e) => {
-            error!(e);
-            return Err(e);
-        }
-    };
-    trace!("Created ohttp client request");
-
-    // Encapsulate the http buffer using the OHTTP request
-    let (enc_request, ohttp_response) = match ohttp_request.encapsulate(&request_buf) {
-        Ok(result) => result,
-        Err(e) => {
-            error!("{e}");
-            return Err(Box::new(e));
-        }
-    };
-    trace!(
-        "Encapsulated the OHTTP request {}",
-        hex::encode(&enc_request[0..60])
-    );
-
-    // Post the encapsulated ohttp request buffer to args.url
-    let response = match post_request(&args.url, &args.outer_headers, enc_request).await {
-        Ok(response) => response,
-        Err(e) => {
-            error!(e);
-            return Err(e);
-        }
-    };
-    trace!("Posted the OHTTP request to {}", args.url);
-
-    // decapsulate and output the http response
-    if let Err(e) = handle_response(response, ohttp_response, &args.output).await {
-        error!(e);
-        return Err(e);
+pub struct OhttpClient {
+}
+impl OhttpClient {
+    pub fn init()
+    {
+        ::ohttp::init();
     }
+    
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post(
+        url: &String,
+        binary: bool,
+        target_path: &str,
+        headers: &Option<Vec<String>>,
+        form_fields: &Option<Vec<String>>,
+        outer_headers: &Option<Vec<String>>,
+        kms_url: &Option<String>,
+        kms_cert: &Option<PathBuf>,
+        config: &Option<HexArg>,
+    ) -> Res<()> {
+        //  create the OHTTP request using the KMS or the static config file
+        let result = if let (Some(kms_url), Some(kms_cert)) = (kms_url, kms_cert) {
+            create_request_from_kms_config(kms_url, kms_cert).await
+        } else {
+            create_request_from_encoded_config_list(config)
+        };
 
-    Ok(())
+        let ohttp_request = match result {
+            Ok(request) => request,
+            Err(e) => {
+                error!(e);
+                return Err(e);
+            }
+        };
+        trace!("Created ohttp client request");
+    
+        //  Create ohttp request buffer
+        let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
+            Ok(result) => result,
+            Err(e) => {
+                error!(e);
+                return Err(e);
+            }
+        };
+    
+        trace!("Created the ohttp request buffer");
+
+        // Encapsulate the http buffer using the OHTTP request
+        let (enc_request, ohttp_response) = match ohttp_request.encapsulate(&request_buf) {
+            Ok(result) => result,
+            Err(e) => {
+                error!("{e}");
+                return Err(Box::new(e));
+            }
+        };
+        trace!(
+            "Encapsulated the OHTTP request {}",
+            hex::encode(&enc_request[0..60])
+        );
+    
+        // Post the encapsulated ohttp request buffer to args.url
+        let response = match post_request(url, outer_headers, enc_request).await {
+            Ok(response) => response,
+            Err(e) => {
+                error!(e);
+                return Err(e);
+            }
+        };
+        trace!("Posted the OHTTP request to {}", url);
+    
+        // decapsulate and output the http response
+        if let Err(e) = handle_response(response, ohttp_response).await {
+            error!(e);
+            return Err(e);
+        }
+
+        Ok(())
+    }
 }
