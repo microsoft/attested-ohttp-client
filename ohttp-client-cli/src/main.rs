@@ -5,7 +5,7 @@ use clap::Parser;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use ohttp_client::HexArg;
 use std::path::PathBuf;
-use ohttp_client::OhttpClient;
+use ohttp_client::OhttpClientBuilder;
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -72,18 +72,18 @@ async fn main() -> Res<()> {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let args = Args::parse();
+    let ohttp_client = OhttpClientBuilder::new()
+        .kms_url(&args.kms_url)
+        .kms_cert(&args.kms_cert)
+        .config(&args.config)
+        .build().await?;
 
-    OhttpClient::init();
-    OhttpClient::post(
+    ohttp_client.post(
         &args.url,
         args.binary,
         &args.target_path,
         &args.headers,
         &args.form_fields,
-        &args.outer_headers,
-        &args.kms_url,
-        &args.kms_cert,
-        &args.config,
-    )
+        &args.outer_headers)
     .await
 }

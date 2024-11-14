@@ -360,40 +360,20 @@ async fn handle_response(
 }
 
 pub struct OhttpClient {
+    ohttp_request: ClientRequest
 }
+
 impl OhttpClient {
-    pub fn init()
-    {
-        ::ohttp::init();
-    }
-    
     #[allow(clippy::too_many_arguments)]
     pub async fn post(
+        self,
         url: &String,
         binary: bool,
         target_path: &str,
         headers: &Option<Vec<String>>,
         form_fields: &Option<Vec<String>>,
-        outer_headers: &Option<Vec<String>>,
-        kms_url: &Option<String>,
-        kms_cert: &Option<PathBuf>,
-        config: &Option<HexArg>,
+        outer_headers: &Option<Vec<String>>
     ) -> Res<()> {
-        //  create the OHTTP request using the KMS or the static config file
-        let result = if let (Some(kms_url), Some(kms_cert)) = (kms_url, kms_cert) {
-            create_request_from_kms_config(kms_url, kms_cert).await
-        } else {
-            create_request_from_encoded_config_list(config)
-        };
-
-        let ohttp_request = match result {
-            Ok(request) => request,
-            Err(e) => {
-                error!(e);
-                return Err(e);
-            }
-        };
-        trace!("Created ohttp client request");
     
         //  Create ohttp request buffer
         let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
@@ -407,7 +387,7 @@ impl OhttpClient {
         trace!("Created the ohttp request buffer");
 
         // Encapsulate the http buffer using the OHTTP request
-        let (enc_request, ohttp_response) = match ohttp_request.encapsulate(&request_buf) {
+        let (enc_request, ohttp_response) = match self.ohttp_request.encapsulate(&request_buf) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
@@ -436,5 +416,58 @@ impl OhttpClient {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct OhttpClientBuilder {
+    kms_url: Option<String>,
+    kms_cert: Option<PathBuf>,
+    config: Option<HexArg>
+}
+
+impl OhttpClientBuilder { 
+    pub fn new() -> OhttpClientBuilder {
+        OhttpClientBuilder {
+            kms_url: None,
+            kms_cert: None,
+            config: None
+        }
+    }
+
+    pub fn kms_url(mut self, kms_url: &Option<String>) -> OhttpClientBuilder {
+        self.kms_url.clone_from(kms_url);
+        self
+    }
+
+    pub fn kms_cert(mut self, kms_cert: &Option<PathBuf>) -> OhttpClientBuilder {
+        self.kms_cert.clone_from(kms_cert);
+        self
+    }
+
+    pub fn config(mut self, config: &Option<HexArg>) -> OhttpClientBuilder {
+        self.config.clone_from(config);
+        self
+    }
+
+    pub async fn build(self) -> Res<OhttpClient> {
+        //  create the OHTTP request using the KMS or the static config file
+        let result = if let (Some(kms_url), Some(kms_cert)) = (self.kms_url, self.kms_cert) {
+            create_request_from_kms_config(&kms_url, &kms_cert).await
+        } else {
+            create_request_from_encoded_config_list(&self.config)
+        };
+
+        let ohttp_request = match result {
+            Ok(request) => request,
+            Err(e) => {
+                error!(e);
+                return Err(e);
+            }
+        };
+
+        trace!("Created ohttp client request");
+
+        Ok(OhttpClient { ohttp_request })
     }
 }
