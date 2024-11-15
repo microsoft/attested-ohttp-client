@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 use clap::Parser;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
-use ohttp_client::HexArg;
+use ohttp_client::{HexArg, OhttpClientBuilder};
 use std::path::PathBuf;
-use ohttp_client::OhttpClientBuilder;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -48,15 +47,15 @@ struct Args {
 
     /// List of headers in the inner request
     #[arg(long, short = 'H')]
-    headers: Option<Vec<String>>,
+    headers: Vec<String>,
 
     /// List of fields in the inner request
     #[arg(long, short = 'F')]
-    form_fields: Option<Vec<String>>,
+    form_fields: Vec<String>,
 
     /// List of headers in the outer request
     #[arg(long, short = 'O')]
-    outer_headers: Option<Vec<String>>,
+    outer_headers: Vec<String>,
 }
 
 #[tokio::main]
@@ -76,14 +75,17 @@ async fn main() -> Res<()> {
         .kms_url(&args.kms_url)
         .kms_cert(&args.kms_cert)
         .config(&args.config)
-        .build().await?;
+        .build()
+        .await?;
 
-    ohttp_client.post(
-        &args.url,
-        args.binary,
-        &args.target_path,
-        &args.headers,
-        &args.form_fields,
-        &args.outer_headers)
-    .await
+    ohttp_client
+        .post(
+            &args.url,
+            args.binary,
+            &args.target_path,
+            &args.headers,
+            &args.form_fields,
+            &args.outer_headers,
+        )
+        .await
 }

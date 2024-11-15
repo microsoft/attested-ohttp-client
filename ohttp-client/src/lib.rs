@@ -46,12 +46,10 @@ fn write_post_request_line(request: &mut Vec<u8>, target_path: &str) -> Res<()> 
 }
 
 /// Appends HTTP headers to the provided request buffer.
-fn append_headers(request: &mut Vec<u8>, headers: &Option<Vec<String>>) -> Res<()> {
-    if let Some(headers) = headers {
-        for header in headers {
-            write!(request, "{header}\r\n")?;
-            info!("{header}\r\n");
-        }
+fn append_headers(request: &mut Vec<u8>, headers: &Vec<String>) -> Res<()> {
+    for header in headers {
+        write!(request, "{header}\r\n")?;
+        info!("{header}\r\n");
     }
     Ok(())
 }
@@ -69,37 +67,35 @@ fn append_headers(request: &mut Vec<u8>, headers: &Option<Vec<String>>) -> Res<(
 ///
 ///      ... contents of the file ...
 ///      ---------------------------boundaryString
-fn create_multipart_body(fields: &Option<Vec<String>>, boundary: &str) -> Res<Vec<u8>> {
+fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
     let mut body = Vec::new();
 
-    if let Some(fields) = fields {
-        for field in fields {
-            let (name, value) = field.split_once('=').unwrap();
-            if value.starts_with('@') {
-                // If the value starts with '@', it is treated as a file path.
-                let filename = value.strip_prefix('@').unwrap();
-                let mut file = File::open(filename)?;
-                let mut file_contents = Vec::new();
-                file.read_to_end(&mut file_contents)?;
+    for field in fields {
+        let (name, value) = field.split_once('=').unwrap();
+        if value.starts_with('@') {
+            // If the value starts with '@', it is treated as a file path.
+            let filename = value.strip_prefix('@').unwrap();
+            let mut file = File::open(filename)?;
+            let mut file_contents = Vec::new();
+            file.read_to_end(&mut file_contents)?;
 
-                let kind = infer::get(&file_contents).expect("file type is unknown");
-                let mime_type = kind.mime_type();
+            let kind = infer::get(&file_contents).expect("file type is unknown");
+            let mime_type = kind.mime_type();
 
-                // Add the file
-                write!(
-                    &mut body,
-                    "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
-                )?;
-                body.extend_from_slice(&file_contents);
-            } else {
-                write!(
-                    &mut body,
-                    "\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
-                )?;
-                write!(&mut body, "{value}")?;
-            }
-            write!(&mut body, "\r\n--{boundary}--\r\n")?;
+            // Add the file
+            write!(
+                &mut body,
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
+            )?;
+            body.extend_from_slice(&file_contents);
+        } else {
+            write!(
+                &mut body,
+                "\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+            )?;
+            write!(&mut body, "{value}")?;
         }
+        write!(&mut body, "\r\n--{boundary}--\r\n")?;
     }
 
     Ok(body)
@@ -134,8 +130,8 @@ fn append_multipart_headers(request: &mut Vec<u8>, boundary: &str, body_len: usi
 ///      ---------------------------boundaryString
 fn create_multipart_request(
     target_path: &str,
-    headers: &Option<Vec<String>>,
-    fields: &Option<Vec<String>>,
+    headers: &Vec<String>,
+    fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
     let boundary = "----ConfidentialInferencingFormBoundary7MA4YWxkTrZu0gW";
@@ -161,8 +157,8 @@ fn create_multipart_request(
 fn create_request_buffer(
     is_bhttp: bool,
     target_path: &str,
-    headers: &Option<Vec<String>>,
-    form_fields: &Option<Vec<String>>,
+    headers: &Vec<String>,
+    form_fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     let request = create_multipart_request(target_path, headers, form_fields)?;
     let mut cursor = Cursor::new(request);
@@ -274,7 +270,7 @@ async fn create_request_from_kms_config(
 
 async fn post_request(
     url: &String,
-    outer_headers: &Option<Vec<String>>,
+    outer_headers: &Vec<String>,
     enc_request: Vec<u8>,
 ) -> Res<reqwest::Response> {
     let client = reqwest::ClientBuilder::new().build()?;
@@ -285,13 +281,10 @@ async fn post_request(
 
     // Add outer headers
     trace!("Outer request headers:");
-    let outer_headers = outer_headers.clone();
-    if let Some(headers) = outer_headers {
-        for header in headers {
-            let (key, value) = header.split_once(':').unwrap();
-            trace!("Adding {key}: {value}");
-            builder = builder.header(key, value);
-        }
+    for header in outer_headers {
+        let (key, value) = header.split_once(':').unwrap();
+        trace!("Adding {key}: {value}");
+        builder = builder.header(key, value);
     }
 
     match builder.body(enc_request).send().await {
@@ -313,7 +306,7 @@ async fn post_request(
                     response.status(),
                     response.text().await?
                 );
-                error!(error_msg);
+                error!("{}", error_msg);
                 Err(error_msg.into())
             }
         }
@@ -327,9 +320,9 @@ async fn post_request(
 /// Decapsulate the http response
 async fn handle_response(
     response: reqwest::Response,
-    client_response: ohttp::ClientResponse
+    client_response: ohttp::ClientResponse,
 ) -> Res<()> {
-    let mut output: Box<dyn io::Write> = Box::new(std::io::stdout()); 
+    let mut output: Box<dyn io::Write> = Box::new(std::io::stdout());
 
     info!("checking token in response");
     if let Some(token) = response.headers().get("x-attestation-token") {
@@ -360,7 +353,7 @@ async fn handle_response(
 }
 
 pub struct OhttpClient {
-    ohttp_request: ClientRequest
+    ohttp_request: ClientRequest,
 }
 
 impl OhttpClient {
@@ -370,20 +363,19 @@ impl OhttpClient {
         url: &String,
         binary: bool,
         target_path: &str,
-        headers: &Option<Vec<String>>,
-        form_fields: &Option<Vec<String>>,
-        outer_headers: &Option<Vec<String>>
+        headers: &Vec<String>,
+        form_fields: &Vec<String>,
+        outer_headers: &Vec<String>,
     ) -> Res<()> {
-    
         //  Create ohttp request buffer
         let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
             Ok(result) => result,
             Err(e) => {
-                error!(e);
+                error!("{e}");
                 return Err(e);
             }
         };
-    
+
         trace!("Created the ohttp request buffer");
 
         // Encapsulate the http buffer using the OHTTP request
@@ -398,20 +390,20 @@ impl OhttpClient {
             "Encapsulated the OHTTP request {}",
             hex::encode(&enc_request[0..60])
         );
-    
+
         // Post the encapsulated ohttp request buffer to args.url
         let response = match post_request(url, outer_headers, enc_request).await {
             Ok(response) => response,
             Err(e) => {
-                error!(e);
+                error!("{e}");
                 return Err(e);
             }
         };
         trace!("Posted the OHTTP request to {}", url);
-    
+
         // decapsulate and output the http response
         if let Err(e) = handle_response(response, ohttp_response).await {
-            error!(e);
+            error!("{e}");
             return Err(e);
         }
 
@@ -423,15 +415,15 @@ impl OhttpClient {
 pub struct OhttpClientBuilder {
     kms_url: Option<String>,
     kms_cert: Option<PathBuf>,
-    config: Option<HexArg>
+    config: Option<HexArg>,
 }
 
-impl OhttpClientBuilder { 
+impl OhttpClientBuilder {
     pub fn new() -> OhttpClientBuilder {
         OhttpClientBuilder {
             kms_url: None,
             kms_cert: None,
-            config: None
+            config: None,
         }
     }
 
@@ -461,7 +453,7 @@ impl OhttpClientBuilder {
         let ohttp_request = match result {
             Ok(request) => request,
             Err(e) => {
-                error!(e);
+                error!("{e}");
                 return Err(e);
             }
         };
