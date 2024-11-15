@@ -2,18 +2,19 @@
 // Licensed under the MIT License.
 
 use bhttp::{Message, Mode};
-use futures_util::{stream::unfold, StreamExt};
+use futures_util::stream::unfold;
 use ohttp::ClientRequest;
 use reqwest::Client;
 use serde::Deserialize;
 use std::{
     fs::{self, File},
-    io::{self, Cursor, Read, Write},
+    io::{Cursor, Read, Write},
     ops::Deref,
     path::PathBuf,
     str::FromStr,
 };
 use tracing::{error, info, trace};
+use warp::hyper::{body::Body, Response};
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -321,14 +322,13 @@ async fn post_request(
 async fn handle_response(
     response: reqwest::Response,
     client_response: ohttp::ClientResponse,
-) -> Res<()> {
-    let mut output: Box<dyn io::Write> = Box::new(std::io::stdout());
-
+) -> Res<Response<Body>> {
     info!("checking token in response");
     if let Some(token) = response.headers().get("x-attestation-token") {
         info!("token: {}", std::str::from_utf8(token.as_bytes()).unwrap())
     }
 
+    let status = response.status();
     let stream = Box::pin(unfold(response, |mut response| async move {
         match response.chunk().await {
             Ok(Some(chunk)) => Some((Ok(chunk.to_vec()), response)),
@@ -336,20 +336,12 @@ async fn handle_response(
         }
     }));
 
-    let mut stream = client_response.decapsulate_stream(stream).await;
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(chunk) => {
-                output.write_all("\n".as_bytes())?;
-                output.write_all(&chunk)?;
-            }
-            Err(e) => {
-                error!("Error in stream {e}")
-            }
-        }
-    }
-
-    Ok(())
+    let stream = client_response.decapsulate_stream(stream).await;
+    let builder = warp::http::Response::builder()
+        .header("Content-Type", "application/json")
+        .status(status)
+        .body(Body::wrap_stream(stream))?;
+    Ok(builder)
 }
 
 pub struct OhttpClient {
@@ -366,7 +358,7 @@ impl OhttpClient {
         headers: &Vec<String>,
         form_fields: &Vec<String>,
         outer_headers: &Vec<String>,
-    ) -> Res<()> {
+    ) -> Res<Response<Body>> {
         //  Create ohttp request buffer
         let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
             Ok(result) => result,
@@ -402,12 +394,13 @@ impl OhttpClient {
         trace!("Posted the OHTTP request to {}", url);
 
         // decapsulate and output the http response
-        if let Err(e) = handle_response(response, ohttp_response).await {
-            error!("{e}");
-            return Err(e);
+        match handle_response(response, ohttp_response).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                error!("{e}");
+                Err(e)
+            }
         }
-
-        Ok(())
     }
 }
 

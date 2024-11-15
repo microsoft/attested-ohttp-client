@@ -1,7 +1,13 @@
 # Build commands
 
+build-cli:
+	cargo build --bin ohttp-client-cli
+
 build-container:
 	docker build -f docker/Dockerfile -t attested-ohttp-client .
+
+build-pyohttp:
+	cd pyohttp && source .env/bin/activate && maturin develop && deactivate
 
 format-checks:
 	cargo fmt --all -- --check --config imports_granularity=Crate

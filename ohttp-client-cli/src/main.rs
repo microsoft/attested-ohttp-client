@@ -78,7 +78,7 @@ async fn main() -> Res<()> {
         .build()
         .await?;
 
-    ohttp_client
+    let mut response = ohttp_client
         .post(
             &args.url,
             args.binary,
@@ -87,5 +87,11 @@ async fn main() -> Res<()> {
             &args.form_fields,
             &args.outer_headers,
         )
-        .await
+        .await?;
+
+    let body = response.body_mut();
+    let bytes = warp::hyper::body::to_bytes(body).await.unwrap();
+    let content = String::from_utf8(bytes.to_vec()).unwrap();
+    println!("{content}");
+    Ok(())
 }
