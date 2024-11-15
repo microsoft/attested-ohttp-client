@@ -38,6 +38,9 @@ impl Deref for HexArg {
     }
 }
 
+use once_cell::sync::OnceCell;
+static ONCE: OnceCell<()> = OnceCell::new();
+
 #[derive(Debug, Parser)]
 #[command(version = "0.1", about = "Make an oblivious HTTP request.")]
 struct Args {
@@ -420,21 +423,43 @@ async fn handle_response(
     Ok(())
 }
 
+fn init() {
+    ONCE.get_or_init(|| {
+        // Build a simple subscriber that outputs to stdout
+        let subscriber = FmtSubscriber::builder()
+            .with_env_filter(EnvFilter::from_default_env())
+            .with_file(true)
+            .with_line_number(true)
+            .finish();
+
+        // Set the subscriber as global default
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+
+        ::ohttp::init();
+    });
+}
+
 #[tokio::main]
 async fn main() -> Res<()> {
-    // Build a simple subscriber that outputs to stdout
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_file(true)
-        .with_line_number(true)
-        .finish();
-
-    // Set the subscriber as global default
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
-    ::ohttp::init();
+    init();
 
     let args = Args::parse();
+
+    //  create the OHTTP request using the KMS or the static config file
+    let result = if let (Some(kms_url), Some(kms_cert)) = (&args.kms_url, &args.kms_cert) {
+        create_request_from_kms_config(kms_url, kms_cert).await
+    } else {
+        create_request_from_encoded_config_list(&args.config)
+    };
+    let ohttp_request = match result {
+        Ok(request) => request,
+        Err(e) => {
+            error!(e);
+            return Err(e);
+        }
+    };
+    trace!("Created ohttp client request");
 
     //  Create ohttp request buffer
     let request_buf = match create_request_buffer(
@@ -451,21 +476,6 @@ async fn main() -> Res<()> {
     };
 
     trace!("Created the ohttp request buffer");
-
-    //  create the OHTTP request using the KMS or the static config file
-    let result = if let (Some(kms_url), Some(kms_cert)) = (&args.kms_url, &args.kms_cert) {
-        create_request_from_kms_config(kms_url, kms_cert).await
-    } else {
-        create_request_from_encoded_config_list(&args.config)
-    };
-    let ohttp_request = match result {
-        Ok(request) => request,
-        Err(e) => {
-            error!(e);
-            return Err(e);
-        }
-    };
-    trace!("Created ohttp client request");
 
     // Encapsulate the http buffer using the OHTTP request
     let (enc_request, ohttp_response) = match ohttp_request.encapsulate(&request_buf) {
@@ -497,4 +507,112 @@ async fn main() -> Res<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    const TARGET_PATH: &str = "/whisper";
+    const FILE_FORM_FIELD: &str = "file=@/home/azureuser/attested-ohttp-client/examples/audio.mp3";
+    const FILE_FORM_FIELD_LARGE: &str =
+        "file=@/home/azureuser/attested-ohttp-client/examples/15m_gpt-has-entered-the-chat.mp3";
+    const SCORING_ENDPOINT: &str = "http://localhost:9443/score";
+    const DISCOVER_ENDPOINT: &str = "http://localhost:9443/discover";
+
+    #[tokio::test]
+    async fn run_client() {
+        init();
+
+        // Call the discover function with the URL
+        let response = reqwest::Client::new()
+            .get(DISCOVER_ENDPOINT)
+            .send()
+            .await
+            .unwrap();
+        let body = response.text().await.unwrap();
+        print!("body = {}", body);
+        let config = HexArg::from_str(&body).unwrap();
+        let ohttp_request = create_request_from_encoded_config_list(&Some(config)).unwrap();
+
+        trace!("Created ohttp client request");
+
+        //  Create ohttp request buffer
+        let is_bhttp: bool = false;
+        let form_fields: Vec<String> = vec![FILE_FORM_FIELD.to_string()];
+        let headers: Option<Vec<String>> = None;
+        let request_buf =
+            create_request_buffer(is_bhttp, TARGET_PATH, &headers, &Some(form_fields)).unwrap();
+
+        trace!("Created the ohttp request buffer");
+
+        // Encapsulate the http buffer using the OHTTP request
+        let (enc_request, ohttp_response) = ohttp_request.encapsulate(&request_buf).unwrap();
+        trace!(
+            "Encapsulated the OHTTP request {}",
+            hex::encode(&enc_request)
+        );
+
+        // Post the encapsulated ohttp request buffer to the scoring endpoint
+        let scoring_endpoint = SCORING_ENDPOINT.to_string();
+        let outer_headers: Option<Vec<String>> = None;
+        let response = post_request(&scoring_endpoint, &outer_headers, enc_request)
+            .await
+            .unwrap();
+        trace!("Posted the OHTTP request to {}", scoring_endpoint);
+
+        // decapsulate and output the http response
+        let output_path: Option<PathBuf> = None;
+        handle_response(response, ohttp_response, &output_path)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn run_client_mt() {
+        init();
+
+        // Call the discover function with the URL
+        let response = reqwest::Client::new()
+            .get(DISCOVER_ENDPOINT)
+            .send()
+            .await
+            .unwrap();
+        let body = response.text().await.unwrap();
+        print!("body = {}", body);
+        let config = HexArg::from_str(&body).unwrap();
+        let ohttp_request = create_request_from_encoded_config_list(&Some(config)).unwrap();
+
+        trace!("Created ohttp client request");
+
+        //  Create ohttp request buffer
+        let is_bhttp: bool = false;
+        let form_fields: Vec<String> = vec![FILE_FORM_FIELD.to_string()];
+        let headers: Option<Vec<String>> = None;
+        let request_buf =
+            create_request_buffer(is_bhttp, TARGET_PATH, &headers, &Some(form_fields)).unwrap();
+
+        trace!("Created the ohttp request buffer");
+
+        // Encapsulate the http buffer using the OHTTP request
+        let (enc_request, ohttp_response) = ohttp_request.encapsulate(&request_buf).unwrap();
+        trace!(
+            "Encapsulated the OHTTP request {}",
+            hex::encode(&enc_request)
+        );
+
+        // Post the encapsulated ohttp request buffer to the scoring endpoint
+        let scoring_endpoint = SCORING_ENDPOINT.to_string();
+        let outer_headers: Option<Vec<String>> = None;
+        let response = post_request(&scoring_endpoint, &outer_headers, enc_request)
+            .await
+            .unwrap();
+        trace!("Posted the OHTTP request to {}", scoring_endpoint);
+
+        // decapsulate and output the http response
+        let output_path: Option<PathBuf> = None;
+        handle_response(response, ohttp_response, &output_path)
+            .await
+            .unwrap();
+    }
 }
