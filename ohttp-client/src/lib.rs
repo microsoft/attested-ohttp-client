@@ -4,7 +4,7 @@
 use bhttp::{Message, Mode};
 use futures_util::stream::unfold;
 use ohttp::ClientRequest;
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::Deserialize;
 use std::{
     fs::{self, File},
@@ -269,6 +269,17 @@ async fn create_request_from_kms_config(
     ClientRequest::from_kms_config(&config, &cert)
 }
 
+fn print_response_headers(response: &Response) {
+    info!("Response headers:");
+    for (key, value) in response.headers() {
+        info!(
+            "{}: {}",
+            key,
+            std::str::from_utf8(value.as_bytes()).unwrap()
+        );
+    }
+}
+
 async fn post_request(
     url: &String,
     outer_headers: &Vec<String>,
@@ -291,17 +302,10 @@ async fn post_request(
     match builder.body(enc_request).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                trace!("response status: {}\n", response.status());
-                trace!("Response headers:");
-                for (key, value) in response.headers() {
-                    trace!(
-                        "{}: {}",
-                        key,
-                        std::str::from_utf8(value.as_bytes()).unwrap()
-                    );
-                }
+                print_response_headers(&response);
                 Ok(response)
             } else {
+                print_response_headers(&response);
                 let error_msg = format!(
                     "HTTP request failed with status {} and message: {}",
                     response.status(),
