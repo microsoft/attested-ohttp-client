@@ -89,9 +89,8 @@ async fn main() -> Res<()> {
         )
         .await?;
 
-    let body = response.body_mut();
-    let bytes = warp::hyper::body::to_bytes(body).await.unwrap();
-    let content = String::from_utf8(bytes.to_vec()).unwrap();
-    println!("{content}");
+    while let Some(chunk) = response.chunk().await? {
+        println!("Chunk: {chunk:?}");
+    }
     Ok(())
 }

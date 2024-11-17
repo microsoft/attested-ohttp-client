@@ -14,7 +14,7 @@ use std::{
     str::FromStr,
 };
 use tracing::{error, info, trace};
-use warp::hyper::{body::Body, Response};
+use warp::hyper::body::Body;
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -326,7 +326,7 @@ async fn post_request(
 async fn handle_response(
     response: reqwest::Response,
     client_response: ohttp::ClientResponse,
-) -> Res<Response<Body>> {
+) -> Res<Response> {
     info!("checking token in response");
     if let Some(token) = response.headers().get("x-attestation-token") {
         info!("token: {}", std::str::from_utf8(token.as_bytes()).unwrap())
@@ -341,11 +341,11 @@ async fn handle_response(
     }));
 
     let stream = client_response.decapsulate_stream(stream).await;
-    let builder = warp::http::Response::builder()
+    let response = warp::http::Response::builder()
         .header("Content-Type", "application/json")
         .status(status)
         .body(Body::wrap_stream(stream))?;
-    Ok(builder)
+    Ok(Response::from(response))
 }
 
 pub struct OhttpClient {
@@ -362,7 +362,7 @@ impl OhttpClient {
         headers: &Vec<String>,
         form_fields: &Vec<String>,
         outer_headers: &Vec<String>,
-    ) -> Res<Response<Body>> {
+    ) -> Res<Response> {
         //  Create ohttp request buffer
         let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
             Ok(result) => result,

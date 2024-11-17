@@ -70,7 +70,7 @@ impl OhttpClient {
                 .build()
                 .await?;
 
-            let mut response = client
+            let response = client
                 .post(
                     &url,
                     binary,
@@ -92,11 +92,12 @@ impl OhttpClient {
                 })
                 .collect();
 
-            let body = response.body_mut();
+            let status = response.status().as_u16();
+            let body = response.text().await?;
             let bytes = warp::hyper::body::to_bytes(body).await?;
 
             Ok(OhttpResponse {
-                status: response.status().as_u16(),
+                status,
                 headers,
                 body: bytes.to_vec(),
             })
