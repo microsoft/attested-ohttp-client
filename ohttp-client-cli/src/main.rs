@@ -3,6 +3,7 @@
 
 use clap::Parser;
 use ohttp_client::{HexArg, OhttpClientBuilder};
+use core::str;
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -89,8 +90,15 @@ async fn main() -> Res<()> {
         )
         .await?;
 
-    while let Some(chunk) = response.chunk().await? {
-        println!("Chunk: {chunk:?}");
+    let status = response.status();
+    if status.is_success() {
+        while let Some(chunk) = response.chunk().await? {
+            let chunk = str::from_utf8(&chunk)?;
+            println!("{chunk}");
+        }
+    } else {
+        println!("Request failed with status {status}");
+        println!("{}", response.text().await?);
     }
     Ok(())
 }

@@ -301,19 +301,13 @@ async fn post_request(
 
     match builder.body(enc_request).send().await {
         Ok(response) => {
-            if response.status().is_success() {
-                print_response_headers(&response);
-                Ok(response)
-            } else {
-                print_response_headers(&response);
-                let error_msg = format!(
-                    "HTTP request failed with status {} and message: {}",
-                    response.status(),
-                    response.text().await?
-                );
+            print_response_headers(&response);
+            let status = response.status();
+            if !status.is_success() {
+                let error_msg = format!("HTTP request failed with status {status}");
                 error!("{}", error_msg);
-                Err(error_msg.into())
             }
+            Ok(response)
         }
         Err(e) => {
             error!("Request failed: {}", e);
