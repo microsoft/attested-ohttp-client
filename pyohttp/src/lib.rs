@@ -1,30 +1,45 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use std::{collections::HashMap, path::PathBuf, string::String};
-
 use ohttp_client::OhttpClientBuilder;
 use pyo3::prelude::*;
+use reqwest::Response;
+use core::str;
+use std::{collections::HashMap, path::PathBuf, string::String};
 
 #[pyclass]
 struct OhttpResponse {
-    status: u16,
-    headers: HashMap<String, String>,
-    body: Vec<u8>,
+    response: Response,
 }
 
 #[pymethods]
 impl OhttpResponse {
     fn status(&self) -> u16 {
-        self.status
+        self.response.status().as_u16()
     }
 
     fn headers(&self) -> HashMap<String, String> {
-        self.headers.clone()
+        self.response
+            .headers()
+            .iter()
+            .filter_map(|(key, value)| {
+                value
+                    .to_str()
+                    .ok()
+                    .map(|value_str| (key.as_str().to_string(), value_str.to_string()))
+            })
+            .collect()
     }
 
-    fn body(&self) -> Vec<u8> {
-        self.body.clone()
+    fn chunk(&mut self) -> Option<Vec<u8>> {
+        let f = async {
+            match self.response.chunk().await {
+                Ok(Some(chunk)) => Some(chunk.to_vec()),
+                _ => None,
+            }
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(f)
     }
 }
 
@@ -81,26 +96,7 @@ impl OhttpClient {
                 )
                 .await?;
 
-            let headers = response
-                .headers()
-                .iter()
-                .filter_map(|(key, value)| {
-                    value
-                        .to_str()
-                        .ok()
-                        .map(|value_str| (key.as_str().to_string(), value_str.to_string()))
-                })
-                .collect();
-
-            let status = response.status().as_u16();
-            let body = response.text().await?;
-            let bytes = warp::hyper::body::to_bytes(body).await?;
-
-            Ok(OhttpResponse {
-                status,
-                headers,
-                body: bytes.to_vec(),
-            })
+            Ok(OhttpResponse { response })
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(f).map_err(|e: Box<dyn std::error::Error>| {

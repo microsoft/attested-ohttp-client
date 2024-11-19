@@ -15,7 +15,8 @@ pyo3-asyncio = { version = "0.20.0", features = ["attributes", "tokio-runtime"] 
 pyo3-log = "0.9.0"
 tokio = "1.41.1"
 tracing = "0.1.40"
-warp = { version = "0.3", features = ["tls"] }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
+bytes = "1.8.0"
 
 [dependencies.ohttp-client]
 path= "../ohttp-client"

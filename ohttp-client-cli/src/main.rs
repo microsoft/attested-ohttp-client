@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 use clap::Parser;
-use ohttp_client::{HexArg, OhttpClientBuilder};
 use core::str;
+use ohttp_client::{HexArg, OhttpClientBuilder};
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
