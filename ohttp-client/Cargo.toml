@@ -26,6 +26,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.18", features = ["default", "json", "env-filter"] }
 infer = "0.16.0"
 warp = { version = "0.3", features = ["tls"] }
+rand = "0.8.5"
 
 [dependencies.verifier]
 path= "../verifier"

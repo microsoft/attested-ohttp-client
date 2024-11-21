@@ -4,6 +4,7 @@
 use bhttp::{Message, Mode};
 use futures_util::stream::unfold;
 use ohttp::ClientRequest;
+use rand::distributions::{Alphanumeric, DistString};
 use reqwest::{Client, Response};
 use serde::Deserialize;
 use std::{
@@ -56,18 +57,6 @@ fn append_headers(request: &mut Vec<u8>, headers: &Vec<String>) -> Res<()> {
 }
 
 /// Creates a multipart/form-data body for an HTTP request.
-/// Structure of multipart body -
-///
-///      ---------------------------boundaryString
-///      Content-Disposition: form-data; name="field1"
-///
-///      value1
-///      ---------------------------boundaryString
-///      Content-Disposition: form-data; name="file"; filename="example.txt"
-///      Content-Type: text/plain
-///
-///      ... contents of the file ...
-///      ---------------------------boundaryString
 fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
     let mut body = Vec::new();
 
@@ -103,8 +92,6 @@ fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
 }
 
 /// Append the headers for a multipart/form-data HTTP request to the provided buffer.
-///      Content-Type: multipart/form-data; boundary=---------------------------boundaryString
-///      Content-Length: 12345
 fn append_multipart_headers(request: &mut Vec<u8>, boundary: &str, body_len: usize) -> Res<()> {
     write!(
         request,
@@ -116,26 +103,15 @@ fn append_multipart_headers(request: &mut Vec<u8>, boundary: &str, body_len: usi
 }
 
 /// Creates an http multipart message.
-///      Content-Type: multipart/form-data; boundary=---------------------------boundaryString
-///      Content-Length: 12345
-///
-///      ---------------------------boundaryString
-///      Content-Disposition: form-data; name="field1"
-///
-///      value1
-///      ---------------------------boundaryString
-///      Content-Disposition: form-data; name="file"; filename="example.txt"
-///      Content-Type: text/plain
-///
-///      ... contents of the file ...
-///      ---------------------------boundaryString
 fn create_multipart_request(
     target_path: &str,
     headers: &Vec<String>,
     fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
-    let boundary = "----ConfidentialInferencingFormBoundary7MA4YWxkTrZu0gW";
+
+    let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
+    let boundary = &format!("----{boundary_string}"); 
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
