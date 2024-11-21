@@ -111,7 +111,7 @@ fn create_multipart_request(
     // Define boundary for multipart
 
     let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
-    let boundary = &format!("----{boundary_string}"); 
+    let boundary = &format!("----{boundary_string}");
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
