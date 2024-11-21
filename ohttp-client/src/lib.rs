@@ -109,7 +109,6 @@ fn create_multipart_request(
     fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
-
     let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
     let boundary = &format!("----{boundary_string}");
 
