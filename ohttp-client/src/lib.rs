@@ -327,6 +327,15 @@ async fn handle_response(
     }
 
     let status = response.status();
+    let mut builder = warp::http::Response::builder().status(status);
+
+    let headers = response.headers().clone();
+    for (key, value) in headers {
+        if let Some(key) = key {
+            builder = builder.header(key, value.clone());
+        }
+    }
+
     let stream = Box::pin(unfold(response, |mut response| async move {
         match response.chunk().await {
             Ok(Some(chunk)) => Some((Ok(chunk.to_vec()), response)),
@@ -335,10 +344,7 @@ async fn handle_response(
     }));
 
     let stream = client_response.decapsulate_stream(stream).await;
-    let response = warp::http::Response::builder()
-        .header("Content-Type", "application/json")
-        .status(status)
-        .body(Body::wrap_stream(stream))?;
+    let response = builder.body(Body::wrap_stream(stream))?;
     Ok(Response::from(response))
 }
 
