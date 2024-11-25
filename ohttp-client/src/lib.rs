@@ -131,20 +131,13 @@ fn create_multipart_request(
 
 /// Prepares a http message based on the `is_bhttp` flag and other parameters.
 fn create_request_buffer(
-    is_bhttp: bool,
     target_path: &str,
     headers: &Vec<String>,
     form_fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     let request = create_multipart_request(target_path, headers, form_fields)?;
     let mut cursor = Cursor::new(request);
-
-    let request = if is_bhttp {
-        Message::read_bhttp(&mut cursor)?
-    } else {
-        Message::read_http(&mut cursor)?
-    };
-
+    let request = Message::read_http(&mut cursor)?;
     let mut request_buf = Vec::new();
     request.write_bhttp(Mode::KnownLength, &mut request_buf)?;
     Ok(request_buf)
@@ -292,7 +285,7 @@ async fn post_request(
 }
 
 /// Decapsulate the http response
-async fn handle_response(
+async fn decapsulate_response(
     response: reqwest::Response,
     client_response: ohttp::ClientResponse,
 ) -> Res<Response> {
@@ -332,14 +325,13 @@ impl OhttpClient {
     pub async fn post(
         self,
         url: &String,
-        binary: bool,
         target_path: &str,
         headers: &Vec<String>,
         form_fields: &Vec<String>,
         outer_headers: &Vec<String>,
     ) -> Res<Response> {
         //  Create ohttp request buffer
-        let request_buf = match create_request_buffer(binary, target_path, headers, form_fields) {
+        let request_buf = match create_request_buffer(target_path, headers, form_fields) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
@@ -373,7 +365,7 @@ impl OhttpClient {
         trace!("Posted the OHTTP request to {}", url);
 
         // decapsulate and output the http response
-        match handle_response(response, ohttp_response).await {
+        match decapsulate_response(response, ohttp_response).await {
             Ok(response) => Ok(response),
             Err(e) => {
                 error!("{e}");

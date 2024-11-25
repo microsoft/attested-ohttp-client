@@ -38,10 +38,6 @@ struct Args {
     #[arg(long, short = 'o')]
     output: Option<PathBuf>,
 
-    /// Read and write as binary HTTP messages instead of text.
-    #[arg(long, short = 'b')]
-    binary: bool,
-
     /// When creating message/bhttp, use the indeterminate-length form.
     #[arg(long, short = 'n', alias = "indefinite")]
     indeterminate: bool,
@@ -82,7 +78,6 @@ async fn main() -> Res<()> {
     let mut response = ohttp_client
         .post(
             &args.url,
-            args.binary,
             &args.target_path,
             &args.headers,
             &args.form_fields,
