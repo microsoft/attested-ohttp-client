@@ -1,13 +1,13 @@
 [package]
-name = "ohttp-client"
+name = "ohttp-client-cli"
 version = "0.1.0"
 authors = ["Antoine Delignat-Lavaud <antdl@microsoft.com>, Arthi Gokarn <arthig@microsoft.com>, Kapil Vaswani <kapilv@microsoft.com>, Tien Le <tienle@microsoft.com>"]
 edition = "2021"
 
 [features]
 default = ["rust-hpke"]
-nss = ["ohttp/nss"]
-rust-hpke = ["ohttp/rust-hpke"]
+nss = ["ohttp-client/nss"]
+rust-hpke = ["ohttp-client/rust-hpke"]
 
 [dependencies]
 clap = { version = "4.5.18", features = ["derive"] }
@@ -26,18 +26,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.18", features = ["default", "json", "env-filter"] }
 infer = "0.16.0"
 warp = { version = "0.3", features = ["tls"] }
-rand = "0.8.5"
 
-[dependencies.verifier]
-path= "../verifier"
-
-[dependencies.bhttp]
-git = "https://github.com/microsoft/ohttp.git"
-branch = "main"
-features = ["bhttp", "http"]
-
-[dependencies.ohttp]
-git = "https://github.com/microsoft/ohttp.git"
-branch = "main"
-features = ["client"]
-default-features = false
+[dependencies.ohttp-client]
+path = "../ohttp-client"

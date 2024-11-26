@@ -26,5 +26,5 @@ else
   ARGS="$ARGS --config `curl -s http://localhost:9443/discover`"
 fi
 
-echo "Running /usr/local/bin/ohttp-client" "$@" ${ARGS}
-RUST_LOG=info /usr/local/bin/ohttp-client "$@" ${ARGS}
+echo "Running /usr/local/bin/ohttp-client-cli" "$@" ${ARGS}
+RUST_LOG=info /usr/local/bin/ohttp-client-cli "$@" ${ARGS}
