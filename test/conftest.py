@@ -3,12 +3,6 @@
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--kms_url",
-        action="append",
-        default=[],
-        help="KMS URL",
-    )
-    parser.addoption(
         "--target_uri",
         action="append",
         default=[],
@@ -28,8 +22,6 @@ def pytest_addoption(parser):
     )
 
 def pytest_generate_tests(metafunc):
-    if "kms_url" in metafunc.fixturenames:
-        metafunc.parametrize("kms_url", metafunc.config.getoption("kms_url"))
     if "target_uri" in metafunc.fixturenames:
         metafunc.parametrize("target_uri", metafunc.config.getoption("target_uri"))
     if "api_key" in metafunc.fixturenames:
