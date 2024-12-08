@@ -222,7 +222,10 @@ impl ClientRequestBuilder for ClientRequest {
 /// Creates an OHTTP client from the static config provided in Args.
 ///
 fn create_request_from_encoded_config_list(config: &Option<HexArg>) -> Res<ohttp::ClientRequest> {
-    let config = config.clone().expect("Config expected.");
+    let config = match config {
+        Some(config) => config,
+        None => return Err("config expected".into()),
+    };
     Ok(ohttp::ClientRequest::from_encoded_config_list(&config)?)
 }
 
