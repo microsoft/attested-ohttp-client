@@ -325,6 +325,7 @@ pub struct OhttpClient {
 
 impl OhttpClient {
 
+    #[allow(clippy::too_many_arguments)]
     async fn encapsulate_and_send(
         self,
         url: &String,
