@@ -67,6 +67,44 @@ impl OhttpClient {
         OhttpClient { kms_url, kms_cert }
     }
 
+
+    pub fn post_raw<'py>(
+        &self,
+        url: String,
+        outer_headers: HashMap<String, String>,
+        http_request: Vec<u8>,
+        py: Python<'py>,
+    ) -> PyResult<&'py PyAny> {
+        let kms_url = self.kms_url.clone();
+        let kms_cert = self.kms_cert.clone();
+        let outer_headers = outer_headers
+            .iter()
+            .map(|(key, value)| format!("{}: {}", key, value))
+            .collect();
+
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            let client = OhttpClientBuilder::new()
+                .kms_url(&Some(kms_url.clone()))
+                .kms_cert(&Some(kms_cert.clone()))
+                .build()
+                .await
+                .map_err(|e: Box<dyn std::error::Error>| {
+                    PyErr::new::<pyo3::exceptions::PyException, _>(format!("{}", e))
+                })?;
+
+            let response = client
+                .post_raw(&url, &outer_headers, &http_request)
+                .await
+                .map_err(|e: Box<dyn std::error::Error>| {
+                    PyErr::new::<pyo3::exceptions::PyException, _>(format!("{}", e))
+                })?;
+
+            Ok(OhttpResponse {
+                response: Arc::new(Mutex::new(response)),
+            })
+        })
+    }
+
     pub fn post<'py>(
         &self,
         url: String,
