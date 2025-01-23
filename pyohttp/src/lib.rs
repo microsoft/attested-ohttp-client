@@ -67,7 +67,6 @@ impl OhttpClient {
         OhttpClient { kms_url, kms_cert }
     }
 
-
     pub fn post_raw<'py>(
         &self,
         url: String,

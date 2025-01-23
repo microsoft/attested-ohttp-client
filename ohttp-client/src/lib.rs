@@ -324,20 +324,19 @@ pub struct OhttpClient {
 }
 
 impl OhttpClient {
-
     #[allow(clippy::too_many_arguments)]
     async fn encapsulate_and_send(
         self,
         url: &String,
         headers: &Vec<String>,
-        bhttp_request: &Vec<u8>
+        bhttp_request: &Vec<u8>,
     ) -> Res<Response> {
         // Encapsulate the http buffer using the OHTTP request
         let (enc_request, ohttp_response) = match self.ohttp_request.encapsulate(bhttp_request) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
-                return Err(Box::new(e));
+                return Err(e);
             }
         };
         trace!(
@@ -379,9 +378,10 @@ impl OhttpClient {
         request.write_bhttp(Mode::KnownLength, &mut request_buf)?;
         trace!("Created the ohttp request buffer");
 
-        return self.encapsulate_and_send(url, outer_headers, &request_buf).await;
+        return self
+            .encapsulate_and_send(url, outer_headers, &request_buf)
+            .await;
     }
-
 
     #[allow(clippy::too_many_arguments)]
     pub async fn post(
@@ -402,7 +402,9 @@ impl OhttpClient {
         };
         trace!("Created the ohttp request buffer");
 
-        return self.encapsulate_and_send(url, outer_headers, &request_buf).await;
+        return self
+            .encapsulate_and_send(url, outer_headers, &request_buf)
+            .await;
     }
 }
 
