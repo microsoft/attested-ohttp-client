@@ -336,7 +336,7 @@ impl OhttpClient {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
-                return Err(e);
+                return Err(Box::new(e));
             }
         };
         trace!(
