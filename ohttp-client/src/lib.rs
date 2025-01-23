@@ -380,7 +380,7 @@ impl OhttpClient {
 
         self
             .encapsulate_and_send(url, outer_headers, &request_buf)
-            .await;
+            .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -404,7 +404,7 @@ impl OhttpClient {
 
         self
             .encapsulate_and_send(url, outer_headers, &request_buf)
-            .await;
+            .await
     }
 }
 
