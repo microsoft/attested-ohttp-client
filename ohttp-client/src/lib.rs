@@ -226,7 +226,7 @@ fn create_request_from_encoded_config_list(config: &Option<HexArg>) -> Res<ohttp
         Some(config) => config,
         None => return Err("config expected".into()),
     };
-    Ok(ohttp::ClientRequest::from_encoded_config_list(&config)?)
+    Ok(ohttp::ClientRequest::from_encoded_config_list(config)?)
 }
 
 /// Creates an OHTTP client from KMS.
@@ -329,7 +329,7 @@ impl OhttpClient {
         self,
         url: &String,
         headers: &Vec<String>,
-        bhttp_request: &Vec<u8>,
+        bhttp_request: &[u8],
     ) -> Res<Response> {
         // Encapsulate the http buffer using the OHTTP request
         let (enc_request, ohttp_response) = match self.ohttp_request.encapsulate(bhttp_request) {
@@ -378,7 +378,7 @@ impl OhttpClient {
         request.write_bhttp(Mode::KnownLength, &mut request_buf)?;
         trace!("Created the ohttp request buffer");
 
-        return self
+        self
             .encapsulate_and_send(url, outer_headers, &request_buf)
             .await;
     }
@@ -402,7 +402,7 @@ impl OhttpClient {
         };
         trace!("Created the ohttp request buffer");
 
-        return self
+        self
             .encapsulate_and_send(url, outer_headers, &request_buf)
             .await;
     }
