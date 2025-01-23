@@ -378,8 +378,7 @@ impl OhttpClient {
         request.write_bhttp(Mode::KnownLength, &mut request_buf)?;
         trace!("Created the ohttp request buffer");
 
-        self
-            .encapsulate_and_send(url, outer_headers, &request_buf)
+        self.encapsulate_and_send(url, outer_headers, &request_buf)
             .await
     }
 
@@ -402,8 +401,7 @@ impl OhttpClient {
         };
         trace!("Created the ohttp request buffer");
 
-        self
-            .encapsulate_and_send(url, outer_headers, &request_buf)
+        self.encapsulate_and_send(url, outer_headers, &request_buf)
             .await
     }
 }
