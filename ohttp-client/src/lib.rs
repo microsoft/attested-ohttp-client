@@ -226,7 +226,7 @@ fn create_request_from_encoded_config_list(config: &Option<HexArg>) -> Res<ohttp
         Some(config) => config,
         None => return Err("config expected".into()),
     };
-    Ok(ohttp::ClientRequest::from_encoded_config_list(&config)?)
+    Ok(ohttp::ClientRequest::from_encoded_config_list(config)?)
 }
 
 /// Creates an OHTTP client from KMS.
@@ -325,27 +325,14 @@ pub struct OhttpClient {
 
 impl OhttpClient {
     #[allow(clippy::too_many_arguments)]
-    pub async fn post(
+    async fn encapsulate_and_send(
         self,
         url: &String,
-        target_path: &str,
         headers: &Vec<String>,
-        form_fields: &Vec<String>,
-        outer_headers: &Vec<String>,
+        bhttp_request: &[u8],
     ) -> Res<Response> {
-        //  Create ohttp request buffer
-        let request_buf = match create_request_buffer(target_path, headers, form_fields) {
-            Ok(result) => result,
-            Err(e) => {
-                error!("{e}");
-                return Err(e);
-            }
-        };
-
-        trace!("Created the ohttp request buffer");
-
         // Encapsulate the http buffer using the OHTTP request
-        let (enc_request, ohttp_response) = match self.ohttp_request.encapsulate(&request_buf) {
+        let (enc_request, ohttp_response) = match self.ohttp_request.encapsulate(bhttp_request) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
@@ -358,7 +345,7 @@ impl OhttpClient {
         );
 
         // Post the encapsulated ohttp request buffer to args.url
-        let response = match post_request(url, outer_headers, enc_request).await {
+        let response = match post_request(url, headers, enc_request).await {
             Ok(response) => response,
             Err(e) => {
                 error!("{e}");
@@ -375,6 +362,47 @@ impl OhttpClient {
                 Err(e)
             }
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post_raw(
+        self,
+        url: &String,
+        outer_headers: &Vec<String>,
+        http_request: &Vec<u8>,
+    ) -> Res<Response> {
+        // transform the http request into bhttp
+        let mut cursor = Cursor::new(http_request);
+        let request = Message::read_http(&mut cursor)?;
+        let mut request_buf = Vec::new();
+        request.write_bhttp(Mode::KnownLength, &mut request_buf)?;
+        trace!("Created the ohttp request buffer");
+
+        self.encapsulate_and_send(url, outer_headers, &request_buf)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post(
+        self,
+        url: &String,
+        target_path: &str,
+        headers: &Vec<String>,
+        form_fields: &Vec<String>,
+        outer_headers: &Vec<String>,
+    ) -> Res<Response> {
+        //  Create ohttp request buffer
+        let request_buf = match create_request_buffer(target_path, headers, form_fields) {
+            Ok(result) => result,
+            Err(e) => {
+                error!("{e}");
+                return Err(e);
+            }
+        };
+        trace!("Created the ohttp request buffer");
+
+        self.encapsulate_and_send(url, outer_headers, &request_buf)
+            .await
     }
 }
 
