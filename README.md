@@ -1,12 +1,14 @@
 # Attested OHTTP Client
 
 This repository contains a reference implementation of an attested OHTTP client for 
-Azure AI confidential inferencing.
+Azure AI confidential inferencing on Linux.
 
 ## Prerequisites 
 
-1. An AzureML endpoint with a confidential whisper model. 
-2. Docker 
+1. Linux environment. 
+    You can use [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/microsoft/attested-ohttp-client)
+2. An AzureML endpoint with a confidential whisper model. 
+3. Docker 
 
 ## Using pre-built image
 
