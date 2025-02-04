@@ -27,7 +27,17 @@ docker run -e KMS_URL=${KMS_URL} mcr.microsoft.com/acc/samples/attested-ohttp-cl
   ${TARGET_URI} -F "file=@/examples/audio.mp3" -O "api-key: ${API_KEY}" -F "response_format=json"
 ```
 
+Run inferencing using a pre-packaged audio file and receive the attestation token.
+The attestation token will be returned as a blob. It can be decoded at [jwt.io](https://jwt.io/).
+```
+export KMS_URL=https://accconfinferenceprod.confidential-ledger.azure.com
+docker run -e KMS_URL=${KMS_URL} mcr.microsoft.com/acc/samples/attested-ohttp-client:latest \
+  ${TARGET_URI} -F "file=@/examples/audio.mp3" -O "api-key: ${API_KEY}" -O "x-attestation-token:true" \
+  -F "response_format=json"
+```
+
 Run inferencing using your own audio file by mounting the file into the container.
+The maximum audio file size supported is 25MB.
 ```
 export KMS_URL=https://accconfinferenceprod.confidential-ledger.azure.com
 export INPUT_PATH=<path_to_your_input_audio_file_exclusing_name>
