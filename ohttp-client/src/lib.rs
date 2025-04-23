@@ -62,6 +62,12 @@ fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
 
     for field in fields {
         let (name, value) = field.split_once('=').unwrap();
+
+        if name == "@" {
+            write!(&mut body, "{value}")?;
+            return Ok(body);
+        }
+
         if value.starts_with('@') {
             // If the value starts with '@', it is treated as a file path.
             let filename = value.strip_prefix('@').unwrap();
@@ -114,6 +120,7 @@ fn create_multipart_request(
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
+
     write_post_request_line(&mut request, target_path)?;
     append_headers(&mut request, headers)?;
 
