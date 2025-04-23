@@ -108,6 +108,7 @@ impl OhttpClient {
         &self,
         url: String,
         headers: HashMap<String, String>,
+        post_data: String,
         form_fields: HashMap<String, String>,
         outer_headers: HashMap<String, String>,
         py: Python<'py>,
@@ -138,7 +139,14 @@ impl OhttpClient {
                 })?;
 
             let response = client
-                .post(&url, "/", &headers, &form_fields, &outer_headers)
+                .post(
+                    &url,
+                    "/",
+                    &headers,
+                    &post_data,
+                    &form_fields,
+                    &outer_headers,
+                )
                 .await
                 .map_err(|e: Box<dyn std::error::Error>| {
                     PyErr::new::<pyo3::exceptions::PyException, _>(format!("{}", e))

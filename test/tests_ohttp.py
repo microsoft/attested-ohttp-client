@@ -28,24 +28,26 @@ def ohttp_client(request):
   return pyohttp.OhttpClient(request.param, output_file)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_basic(ohttp_client, target_uri, api_key, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": api_key }
   headers = {}
-  response = await ohttp_client.post(target_uri, headers, form_fields, outer_headers)
+  post_data = ""
+  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")
   assert status == 200
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_attestation_token(ohttp_client, target_uri, api_key, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": api_key, "x-attestation-token": "true" }
   headers = {}
-  response = await ohttp_client.post(target_uri, headers, form_fields, outer_headers)
+  post_data = ""
+  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")
@@ -53,12 +55,13 @@ async def test_attestation_token(ohttp_client, target_uri, api_key, audio_file):
   assert status == 200
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_invalid_api_key(ohttp_client, target_uri, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": "invalid_key" }
   headers = {}
-  response = await ohttp_client.post(target_uri, headers, form_fields, outer_headers)
+  post_data = ""
+  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")

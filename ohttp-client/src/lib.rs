@@ -57,16 +57,13 @@ fn append_headers(request: &mut Vec<u8>, headers: &Vec<String>) -> Res<()> {
 }
 
 /// Creates a multipart/form-data body for an HTTP request.
-fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
+fn create_multipart_body(post_data: &str, fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
     let mut body = Vec::new();
+
+    write!(&mut body, "{post_data}")?;
 
     for field in fields {
         let (name, value) = field.split_once('=').unwrap();
-
-        if name == "@" {
-            write!(&mut body, "{value}")?;
-            return Ok(body);
-        }
 
         if value.starts_with('@') {
             // If the value starts with '@', it is treated as a file path.
@@ -112,6 +109,7 @@ fn append_multipart_headers(request: &mut Vec<u8>, boundary: &str, body_len: usi
 fn create_multipart_request(
     target_path: &str,
     headers: &Vec<String>,
+    post_data: &str,
     fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
@@ -125,7 +123,7 @@ fn create_multipart_request(
     append_headers(&mut request, headers)?;
 
     // Create multipart body
-    let mut body = create_multipart_body(fields, boundary)?;
+    let mut body = create_multipart_body(post_data, fields, boundary)?;
 
     // Append multipart headers
     append_multipart_headers(&mut request, boundary, body.len())?;
@@ -140,9 +138,10 @@ fn create_multipart_request(
 fn create_request_buffer(
     target_path: &str,
     headers: &Vec<String>,
+    post_data: &str,
     form_fields: &Vec<String>,
 ) -> Res<Vec<u8>> {
-    let request = create_multipart_request(target_path, headers, form_fields)?;
+    let request = create_multipart_request(target_path, headers, post_data, form_fields)?;
     let mut cursor = Cursor::new(request);
     let request = Message::read_http(&mut cursor)?;
     let mut request_buf = Vec::new();
@@ -395,11 +394,13 @@ impl OhttpClient {
         url: &String,
         target_path: &str,
         headers: &Vec<String>,
+        post_data: &str,
         form_fields: &Vec<String>,
         outer_headers: &Vec<String>,
     ) -> Res<Response> {
         //  Create ohttp request buffer
-        let request_buf = match create_request_buffer(target_path, headers, form_fields) {
+        let request_buf = match create_request_buffer(target_path, headers, post_data, form_fields)
+        {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
