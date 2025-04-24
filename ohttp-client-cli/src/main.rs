@@ -46,6 +46,9 @@ struct Args {
     #[arg(long, short = 'H')]
     headers: Vec<String>,
 
+    #[arg(long, short = 'd', default_value = "")]
+    data: String,
+
     /// List of fields in the inner request
     #[arg(long, short = 'F')]
     form_fields: Vec<String>,
@@ -80,6 +83,7 @@ async fn main() -> Res<()> {
             &args.url,
             &args.target_path,
             &args.headers,
+            &args.data,
             &args.form_fields,
             &args.outer_headers,
         )
