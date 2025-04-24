@@ -108,7 +108,7 @@ impl OhttpClient {
         &self,
         url: String,
         headers: HashMap<String, String>,
-        post_data: String,
+        data: String,
         form_fields: HashMap<String, String>,
         outer_headers: HashMap<String, String>,
         py: Python<'py>,
@@ -143,7 +143,7 @@ impl OhttpClient {
                     &url,
                     "/",
                     &headers,
-                    &post_data,
+                    &data,
                     &form_fields,
                     &outer_headers,
                 )

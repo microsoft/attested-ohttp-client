@@ -33,8 +33,8 @@ async def test_basic(ohttp_client, target_uri, api_key, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": api_key }
   headers = {}
-  post_data = ""
-  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
+  data = ""
+  response = await ohttp_client.post(target_uri, headers, data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")
@@ -46,8 +46,8 @@ async def test_attestation_token(ohttp_client, target_uri, api_key, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": api_key, "x-attestation-token": "true" }
   headers = {}
-  post_data = ""
-  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
+  data = ""
+  response = await ohttp_client.post(target_uri, headers, data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")
@@ -60,8 +60,8 @@ async def test_invalid_api_key(ohttp_client, target_uri, audio_file):
   form_fields = {"file": "@" + audio_file, "response_format": "json" }
   outer_headers = { "api-key": "invalid_key" }
   headers = {}
-  post_data = ""
-  response = await ohttp_client.post(target_uri, headers, post_data, form_fields, outer_headers)
+  data = ""
+  response = await ohttp_client.post(target_uri, headers, data, form_fields, outer_headers)
   status = response.status()
   for key, value in response.headers().items():
     print(f"{key}: {value}")
