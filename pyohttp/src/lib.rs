@@ -139,14 +139,7 @@ impl OhttpClient {
                 })?;
 
             let response = client
-                .post(
-                    &url,
-                    "/",
-                    &headers,
-                    &data,
-                    &form_fields,
-                    &outer_headers,
-                )
+                .post(&url, "/", &headers, &data, &form_fields, &outer_headers)
                 .await
                 .map_err(|e: Box<dyn std::error::Error>| {
                     PyErr::new::<pyo3::exceptions::PyException, _>(format!("{}", e))

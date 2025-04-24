@@ -399,8 +399,7 @@ impl OhttpClient {
         outer_headers: &Vec<String>,
     ) -> Res<Response> {
         //  Create ohttp request buffer
-        let request_buf = match create_request_buffer(target_path, headers, data, form_fields)
-        {
+        let request_buf = match create_request_buffer(target_path, headers, data, form_fields) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");
