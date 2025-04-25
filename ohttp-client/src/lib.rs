@@ -48,20 +48,36 @@ fn write_post_request_line(request: &mut Vec<u8>, target_path: &str) -> Res<()> 
 }
 
 /// Appends HTTP headers to the provided request buffer.
-fn append_headers(request: &mut Vec<u8>, headers: &Vec<String>) -> Res<()> {
-    for header in headers {
-        write!(request, "{header}\r\n")?;
-        info!("{header}\r\n");
+fn append_headers(request: &mut Vec<u8>, headers: &Option<Vec<String>>) -> Res<()> {
+    if let Some(headers) = headers {
+        for header in headers {
+            write!(request, "{header}\r\n")?;
+            info!("{header}\r\n");
+        }
     }
     Ok(())
 }
 
 /// Creates a multipart/form-data body for an HTTP request.
-fn create_multipart_body(fields: &Vec<String>, boundary: &str) -> Res<Vec<u8>> {
+fn create_multipart_body(
+    data: &Option<String>,
+    fields: &Option<Vec<String>>,
+    boundary: &str,
+) -> Res<Vec<u8>> {
     let mut body = Vec::new();
+
+    if let Some(data) = data {
+        write!(&mut body, "{data}")?;
+    }
+
+    let fields = match fields {
+        Some(fields) => fields,
+        None => return Ok(body),
+    };
 
     for field in fields {
         let (name, value) = field.split_once('=').unwrap();
+
         if value.starts_with('@') {
             // If the value starts with '@', it is treated as a file path.
             let filename = value.strip_prefix('@').unwrap();
@@ -105,8 +121,9 @@ fn append_multipart_headers(request: &mut Vec<u8>, boundary: &str, body_len: usi
 /// Creates an http multipart message.
 fn create_multipart_request(
     target_path: &str,
-    headers: &Vec<String>,
-    fields: &Vec<String>,
+    headers: &Option<Vec<String>>,
+    data: &Option<String>,
+    fields: &Option<Vec<String>>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
     let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
@@ -114,11 +131,12 @@ fn create_multipart_request(
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
+
     write_post_request_line(&mut request, target_path)?;
     append_headers(&mut request, headers)?;
 
     // Create multipart body
-    let mut body = create_multipart_body(fields, boundary)?;
+    let mut body = create_multipart_body(data, fields, boundary)?;
 
     // Append multipart headers
     append_multipart_headers(&mut request, boundary, body.len())?;
@@ -132,10 +150,11 @@ fn create_multipart_request(
 /// Prepares a http message based on the `is_bhttp` flag and other parameters.
 fn create_request_buffer(
     target_path: &str,
-    headers: &Vec<String>,
-    form_fields: &Vec<String>,
+    headers: &Option<Vec<String>>,
+    data: &Option<String>,
+    form_fields: &Option<Vec<String>>,
 ) -> Res<Vec<u8>> {
-    let request = create_multipart_request(target_path, headers, form_fields)?;
+    let request = create_multipart_request(target_path, headers, data, form_fields)?;
     let mut cursor = Cursor::new(request);
     let request = Message::read_http(&mut cursor)?;
     let mut request_buf = Vec::new();
@@ -253,7 +272,7 @@ fn print_response_headers(response: &Response) {
 
 async fn post_request(
     url: &String,
-    outer_headers: &Vec<String>,
+    outer_headers: &Option<Vec<String>>,
     enc_request: Vec<u8>,
 ) -> Res<reqwest::Response> {
     let client = reqwest::ClientBuilder::new().build()?;
@@ -263,11 +282,13 @@ async fn post_request(
         .header("content-type", "message/ohttp-chunked-req");
 
     // Add outer headers
-    trace!("Outer request headers:");
-    for header in outer_headers {
-        let (key, value) = header.split_once(':').unwrap();
-        trace!("Adding {key}: {value}");
-        builder = builder.header(key, value);
+    if let Some(outer_headers) = outer_headers {
+        trace!("Outer request headers:");
+        for header in outer_headers {
+            let (key, value) = header.split_once(':').unwrap();
+            trace!("Adding {key}: {value}");
+            builder = builder.header(key, value);
+        }
     }
 
     match builder.body(enc_request).send().await {
@@ -328,7 +349,7 @@ impl OhttpClient {
     async fn encapsulate_and_send(
         self,
         url: &String,
-        headers: &Vec<String>,
+        headers: &Option<Vec<String>>,
         bhttp_request: &[u8],
     ) -> Res<Response> {
         // Encapsulate the http buffer using the OHTTP request
@@ -368,7 +389,7 @@ impl OhttpClient {
     pub async fn post_raw(
         self,
         url: &String,
-        outer_headers: &Vec<String>,
+        outer_headers: &Option<Vec<String>>,
         http_request: &Vec<u8>,
     ) -> Res<Response> {
         // transform the http request into bhttp
@@ -387,12 +408,13 @@ impl OhttpClient {
         self,
         url: &String,
         target_path: &str,
-        headers: &Vec<String>,
-        form_fields: &Vec<String>,
-        outer_headers: &Vec<String>,
+        headers: &Option<Vec<String>>,
+        data: &Option<String>,
+        form_fields: &Option<Vec<String>>,
+        outer_headers: &Option<Vec<String>>,
     ) -> Res<Response> {
         //  Create ohttp request buffer
-        let request_buf = match create_request_buffer(target_path, headers, form_fields) {
+        let request_buf = match create_request_buffer(target_path, headers, data, form_fields) {
             Ok(result) => result,
             Err(e) => {
                 error!("{e}");

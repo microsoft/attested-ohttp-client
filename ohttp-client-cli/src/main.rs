@@ -44,15 +44,18 @@ struct Args {
 
     /// List of headers in the inner request
     #[arg(long, short = 'H')]
-    headers: Vec<String>,
+    headers: Option<Vec<String>>,
+
+    #[arg(long, short = 'd', default_value = "")]
+    data: Option<String>,
 
     /// List of fields in the inner request
     #[arg(long, short = 'F')]
-    form_fields: Vec<String>,
+    form_fields: Option<Vec<String>>,
 
     /// List of headers in the outer request
     #[arg(long, short = 'O')]
-    outer_headers: Vec<String>,
+    outer_headers: Option<Vec<String>>,
 }
 
 #[tokio::main]
@@ -80,6 +83,7 @@ async fn main() -> Res<()> {
             &args.url,
             &args.target_path,
             &args.headers,
+            &args.data,
             &args.form_fields,
             &args.outer_headers,
         )
