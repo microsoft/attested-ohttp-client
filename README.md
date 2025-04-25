@@ -29,8 +29,7 @@ Build the pyohttp package as follows.
 ```shell
 ./scripts/build-pyohttp.sh
 ```
-
-The [sample python script](samples/ohttp-client-cli.py) shows how to make an attested OHTTP inference request to a Confidential Whisper endpoint using this package. 
+Install the package from ```target/wheels``` using pip. The [sample python script](samples/ohttp-client-cli.py) shows how use this package and make an attested OHTTP inference request to a confidential whisper endpoint. 
 
 ## Docker
 
