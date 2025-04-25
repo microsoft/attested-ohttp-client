@@ -70,16 +70,17 @@ impl OhttpClient {
     pub fn post_raw<'py>(
         &self,
         url: String,
-        outer_headers: HashMap<String, String>,
         http_request: Vec<u8>,
+        outer_headers: Option<HashMap<String, String>>,
         py: Python<'py>,
     ) -> PyResult<&'py PyAny> {
         let kms_url = self.kms_url.clone();
         let kms_cert = self.kms_cert.clone();
-        let outer_headers = outer_headers
-            .iter()
-            .map(|(key, value)| format!("{}: {}", key, value))
-            .collect();
+        let outer_headers = outer_headers.map(|h| {
+            h.iter()
+                .map(|(key, value)| format!("{}: {}", key, value))
+                .collect::<Vec<String>>()
+        });
 
         pyo3_asyncio::tokio::future_into_py(py, async move {
             let client = OhttpClientBuilder::new()
@@ -107,26 +108,29 @@ impl OhttpClient {
     pub fn post<'py>(
         &self,
         url: String,
-        headers: HashMap<String, String>,
-        data: String,
-        form_fields: HashMap<String, String>,
-        outer_headers: HashMap<String, String>,
+        headers: Option<HashMap<String, String>>,
+        data: Option<String>,
+        form_fields: Option<HashMap<String, String>>,
+        outer_headers: Option<HashMap<String, String>>,
         py: Python<'py>,
     ) -> PyResult<&'py PyAny> {
         let kms_url = self.kms_url.clone();
         let kms_cert = self.kms_cert.clone();
-        let headers = headers
-            .iter()
-            .map(|(key, value)| format!("{}: {}", key, value))
-            .collect();
-        let form_fields = form_fields
-            .iter()
-            .map(|(key, value)| format!("{}={}", key, value))
-            .collect();
-        let outer_headers = outer_headers
-            .iter()
-            .map(|(key, value)| format!("{}: {}", key, value))
-            .collect();
+        let headers = headers.map(|h| {
+            h.iter()
+                .map(|(key, value)| format!("{}: {}", key, value))
+                .collect::<Vec<String>>()
+        });
+        let form_fields = form_fields.map(|f| {
+            f.iter()
+                .map(|(key, value)| format!("{}={}", key, value))
+                .collect::<Vec<String>>()
+        });
+        let outer_headers = outer_headers.map(|o| {
+            o.iter()
+                .map(|(key, value)| format!("{}: {}", key, value))
+                .collect::<Vec<String>>()
+        });
 
         pyo3_asyncio::tokio::future_into_py(py, async move {
             let client = OhttpClientBuilder::new()
