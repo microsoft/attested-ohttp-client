@@ -78,6 +78,8 @@ fn create_multipart_body(
     for field in fields {
         let (name, value) = field.split_once('=').unwrap();
 
+        write!(&mut body, "--{boundary}\r\n")?;
+
         if value.starts_with('@') {
             // If the value starts with '@', it is treated as a file path.
             let filename = value.strip_prefix('@').unwrap();
@@ -91,18 +93,19 @@ fn create_multipart_body(
             // Add the file
             write!(
                 &mut body,
-                "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
+                "Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
             )?;
             body.extend_from_slice(&file_contents);
         } else {
             write!(
                 &mut body,
-                "\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+                "Content-Disposition: form-data; name=\"{name}\"\r\n\r\n"
             )?;
             write!(&mut body, "{value}")?;
         }
-        write!(&mut body, "\r\n--{boundary}--\r\n")?;
+        write!(&mut body, "\r\n")?;
     }
+    write!(&mut body, "--{boundary}--\r\n")?;
 
     Ok(body)
 }
@@ -126,8 +129,7 @@ fn create_multipart_request(
     fields: &Option<Vec<String>>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
-    let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
-    let boundary = &format!("----{boundary_string}");
+    let boundary = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
@@ -136,10 +138,10 @@ fn create_multipart_request(
     append_headers(&mut request, headers)?;
 
     // Create multipart body
-    let mut body = create_multipart_body(data, fields, boundary)?;
+    let mut body = create_multipart_body(data, fields, &boundary)?;
 
     // Append multipart headers
-    append_multipart_headers(&mut request, boundary, body.len())?;
+    append_multipart_headers(&mut request, &boundary, body.len())?;
 
     // Append body to the request
     request.append(&mut body);
