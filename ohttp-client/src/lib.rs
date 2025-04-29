@@ -94,15 +94,16 @@ fn create_multipart_body(
                 "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
             )?;
             body.extend_from_slice(&file_contents);
+            write!(&mut body, "\r\n")?;
         } else {
             write!(
                 &mut body,
-                "\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
             )?;
-            write!(&mut body, "{value}")?;
+            write!(&mut body, "{value}\r\n")?;
         }
-        write!(&mut body, "\r\n--{boundary}--\r\n")?;
     }
+    write!(&mut body, "--{boundary}--\r\n")?;
 
     Ok(body)
 }
@@ -126,8 +127,7 @@ fn create_multipart_request(
     fields: &Option<Vec<String>>,
 ) -> Res<Vec<u8>> {
     // Define boundary for multipart
-    let boundary_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
-    let boundary = &format!("----{boundary_string}");
+    let boundary = Alphanumeric.sample_string(&mut rand::thread_rng(), 32);
 
     // Create a POST request for target target_path
     let mut request = Vec::new();
@@ -136,10 +136,10 @@ fn create_multipart_request(
     append_headers(&mut request, headers)?;
 
     // Create multipart body
-    let mut body = create_multipart_body(data, fields, boundary)?;
+    let mut body = create_multipart_body(data, fields, &boundary)?;
 
     // Append multipart headers
-    append_multipart_headers(&mut request, boundary, body.len())?;
+    append_multipart_headers(&mut request, &boundary, body.len())?;
 
     // Append body to the request
     request.append(&mut body);
