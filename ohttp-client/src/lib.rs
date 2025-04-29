@@ -78,6 +78,8 @@ fn create_multipart_body(
     for field in fields {
         let (name, value) = field.split_once('=').unwrap();
 
+        write!(&mut body, "--{boundary}\r\n")?;
+
         if value.starts_with('@') {
             // If the value starts with '@', it is treated as a file path.
             let filename = value.strip_prefix('@').unwrap();
@@ -91,17 +93,17 @@ fn create_multipart_body(
             // Add the file
             write!(
                 &mut body,
-                "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
+                "Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: {mime_type}\r\n\r\n"
             )?;
             body.extend_from_slice(&file_contents);
-            write!(&mut body, "\r\n")?;
         } else {
             write!(
                 &mut body,
-                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+                "Content-Disposition: form-data; name=\"{name}\"\r\n\r\n"
             )?;
-            write!(&mut body, "{value}\r\n")?;
+            write!(&mut body, "{value}")?;
         }
+        write!(&mut body, "\r\n")?;
     }
     write!(&mut body, "--{boundary}--\r\n")?;
 
