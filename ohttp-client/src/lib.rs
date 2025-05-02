@@ -302,7 +302,11 @@ async fn post_request(
     }
 }
 
-fn get_response_builder(response: &reqwest::Response) -> warp::http::response::Builder {
+/// Decapsulate the http response
+async fn decapsulate_response(
+    response: reqwest::Response,
+    client_response: ohttp::ClientResponse,
+) -> Res<Response> {
     info!("checking token in response");
     if let Some(token) = response.headers().get("x-attestation-token") {
         info!("token: {}", std::str::from_utf8(token.as_bytes()).unwrap())
@@ -318,16 +322,6 @@ fn get_response_builder(response: &reqwest::Response) -> warp::http::response::B
         }
     }
 
-    builder
-}
-
-/// Decapsulate the http response
-async fn get_decapsulated_response(
-    response: reqwest::Response,
-    client_response: ohttp::ClientResponse,
-) -> Res<Response> {
-    let builder = get_response_builder(&response);
-
     let stream = Box::pin(unfold(response, |mut response| async move {
         match response.chunk().await {
             Ok(Some(chunk)) => Some((Ok(chunk.to_vec()), response)),
@@ -337,26 +331,6 @@ async fn get_decapsulated_response(
 
     let stream = client_response.decapsulate_stream(stream).await;
     let response = builder.body(Body::wrap_stream(stream))?;
-    Ok(Response::from(response))
-}
-
-/// Decapsulate the http response
-async fn get_decapsulated_error_response(
-    response: reqwest::Response,
-    client_response: ohttp::ClientResponse,
-) -> Res<Response> {
-    let builder = get_response_builder(&response);
-
-    let body = response.bytes().await?;
-    let decapsulated_error = match client_response.decapsulate(&body.to_vec()) {
-        Ok(decapsulated_error) => decapsulated_error,
-        Err(e) => {
-            error!("{e}");
-            return Err(Box::new(e));
-        }
-    };
-
-    let response = builder.body(Body::from(decapsulated_error))?;
     Ok(Response::from(response))
 }
 
@@ -397,21 +371,11 @@ impl OhttpClient {
 
         // decapsulate and output the error or http response
         print_response_headers(&response);
-        if !response.status().is_success() {
-            match get_decapsulated_error_response(response, ohttp_response).await {
-                Ok(response) => return Ok(response),
-                Err(e) => {
-                    error!("{e}");
-                    return Err(e);
-                }
-            }
-        } else {
-            match get_decapsulated_response(response, ohttp_response).await {
-                Ok(response) => return Ok(response),
-                Err(e) => {
-                    error!("{e}");
-                    return Err(e);
-                }
+        match decapsulate_response(response, ohttp_response).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                error!("{e}");
+                Err(e)
             }
         }
     }
