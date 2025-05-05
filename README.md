@@ -22,6 +22,9 @@ Rust and python packages can be built using this repo. We support development an
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/microsoft/attested-ohttp-client)
 
+## Encapsulated error messages
+In addition to the encapsulated response from confidential whisper model, the error messages will also be declassified to enhance confidentiality. 
+
 ## Python package
 
 Build the pyohttp package as follows. 
