@@ -5,6 +5,7 @@ use clap::Parser;
 use core::str;
 use ohttp_client::{HexArg, OhttpClientBuilder};
 use std::path::PathBuf;
+use tracing::error;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 type Res<T> = Result<T, Box<dyn std::error::Error>>;
@@ -97,7 +98,7 @@ async fn main() -> Res<()> {
         }
     } else {
         println!("Request failed with status {status}");
-        println!("{}", response.text().await?);
+        error!("{}", response.text().await?);
     }
     Ok(())
 }

@@ -294,15 +294,7 @@ async fn post_request(
     }
 
     match builder.body(enc_request).send().await {
-        Ok(response) => {
-            print_response_headers(&response);
-            let status = response.status();
-            if !status.is_success() {
-                let error_msg = format!("HTTP request failed with status {status}");
-                error!("{}", error_msg);
-            }
-            Ok(response)
-        }
+        Ok(response) => Ok(response),
         Err(e) => {
             error!("Request failed: {}", e);
             Err(Box::new(e))
@@ -377,7 +369,8 @@ impl OhttpClient {
         };
         trace!("Posted the OHTTP request to {}", url);
 
-        // decapsulate and output the http response
+        // decapsulate and output the error or http response
+        print_response_headers(&response);
         match decapsulate_response(response, ohttp_response).await {
             Ok(response) => Ok(response),
             Err(e) => {
