@@ -97,8 +97,7 @@ async fn main() -> Res<()> {
             println!("{chunk}");
         }
     } else {
-        println!("Request failed with status {status}");
-        error!("{}", response.text().await?);
+        error!("Request failed with status {status} {}", response.text().await.unwrap_or_default());
     }
     Ok(())
 }
