@@ -21,7 +21,7 @@ def download_kms_certificate(kms_url, output_file):
     assert False
 
 
-@pytest.fixture(scope="module", params=["https://accconfinferenceprod.confidential-ledger.azure.com"])
+@pytest.fixture(scope="module", params=["https://accconfinferenceproduction.confidential-ledger.azure.com"])
 def ohttp_client(request):
   output_file = "/tmp/service_cert.pem"
   download_kms_certificate(kms_url=request.param, output_file=output_file)
