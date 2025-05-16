@@ -45,10 +45,6 @@ export API_KEY=<key for accessing the endpoint>
 
 Set the Key Management Service (KMS) endpoint as follows.
 ```
-For EastUS2:
-export KMS_URL=https://accconfinferenceprod.confidential-ledger.azure.com
-
-For WestEurope:
 export KMS_URL=https://accconfinferenceproduction.confidential-ledger.azure.com
 ```
 
