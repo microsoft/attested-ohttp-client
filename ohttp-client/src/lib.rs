@@ -288,7 +288,7 @@ async fn post_request(
         trace!("Outer request headers:");
         for header in outer_headers {
             let (key, value) = header.split_once(':').unwrap();
-            let trimmed_value: value.trim();
+            let trimmed_value = value.trim();
             
             trace!("Adding {key}: {trimmed_value}");
             builder = builder.header(key, trimmed_value);
