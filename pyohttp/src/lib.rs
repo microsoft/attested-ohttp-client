@@ -78,7 +78,7 @@ impl OhttpClient {
         let kms_cert = self.kms_cert.clone();
         let outer_headers = outer_headers.map(|h| {
             h.iter()
-                .map(|(key, value)| format!("{}: {}", key, value))
+                .map(|(key, value)| format!("{}:{}", key, value))
                 .collect::<Vec<String>>()
         });
 
@@ -118,7 +118,7 @@ impl OhttpClient {
         let kms_cert = self.kms_cert.clone();
         let headers = headers.map(|h| {
             h.iter()
-                .map(|(key, value)| format!("{}: {}", key, value))
+                .map(|(key, value)| format!("{}:{}", key, value))
                 .collect::<Vec<String>>()
         });
         let form_fields = form_fields.map(|f| {
@@ -128,7 +128,7 @@ impl OhttpClient {
         });
         let outer_headers = outer_headers.map(|o| {
             o.iter()
-                .map(|(key, value)| format!("{}: {}", key, value))
+                .map(|(key, value)| format!("{}:{}", key, value))
                 .collect::<Vec<String>>()
         });
 
