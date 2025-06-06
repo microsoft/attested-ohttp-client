@@ -187,8 +187,7 @@ async fn get_kms_config(kms_url: String, cert: &str) -> Res<String> {
                     retries += 1;
                     trace!(
                         "Received 202 status code, retrying... (attempt {}/{})",
-                        retries,
-                        max_retries
+                        retries, max_retries
                     );
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 } else {
