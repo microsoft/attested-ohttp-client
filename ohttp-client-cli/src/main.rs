@@ -97,6 +97,7 @@ async fn main() -> Res<()> {
             println!("{chunk}");
         }
     } else {
+        // Decapsulated error message.
         println!("Request failed with status {status}");
         error!("{}", response.text().await?);
     }
