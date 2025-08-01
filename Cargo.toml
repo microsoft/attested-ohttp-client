@@ -4,5 +4,6 @@ members = [
   "ohttp-client",
   "verifier",
   "pyohttp", 
-  "ohttp-client-cli"
+  "ohttp-client-cli",
+  "ohttp-proxy"
 ]
