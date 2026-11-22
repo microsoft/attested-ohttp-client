@@ -1,4 +1,4 @@
-FROM rust:1.86 AS builder
+FROM rust:1.94-bookworm AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -yq openssl libssl-dev
