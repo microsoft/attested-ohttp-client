@@ -23,11 +23,16 @@ jobs:
         hpke:
           - rust-hpke
         rust:
-          - 1.86
+          - "1.94"
           - stable
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
